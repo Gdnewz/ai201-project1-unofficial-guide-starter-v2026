@@ -57,40 +57,22 @@ in at least 4 of 5 tries.
 
 ## 4. Something about your chunks
 
-<!-- YOU WRITE THIS ONE.
-
-     How would you know if your chunks were the right size? Name something
-     countable or observable.
-
-     Examples of the right shape — don't copy these, they should come from
-     what you actually saw in Milestone 3:
-       - "At least 4 of 5 sampled chunks read as a complete thought, with no
-          sentence cut in half at either end."
-       - "No chunk is shorter than 200 characters, since anything below that
-          in my corpus turned out to be a heading with no content under it." -->
-
-
+ No chunk is under 170 characters or over 400 characters 
 
 **Why this target:**
-
+no chunk is under 170 characters because nothing in the corpus is currently under 188, so the floor is of no use currently. The floor controls what the chunker is allowed to produce. Looking at the advice-thread chunk, the individual replies reference things said earlier, so splitting per reply would produce pieces nobody could answer from.
+the chunk should not be above 400 because the 563 character file I inspected covered six subjects and scored 0.15 worse on a fact buried inside it. I set the ceiling below it, at the point where I'd expect mixing to start.
 
 
 ---
 
 ## 5. Your choice
 
-<!-- YOU WRITE THIS ONE TOO.
-
-     Pick something you actually care about getting right. It could be about
-     speed, about refusals, about a particular kind of question your corpus
-     handles badly, about source attribution being correct rather than merely
-     present — anything, as long as it names a number or an observable
-     outcome. -->
-
+For all of my 5 test questions, every fact in the answer must appear in one of the retrieved chunks.
 
 
 **Why this target:**
-
+It must be 5 of 5 because a system that invents facts one time in five is arguably worse than one that refuses more often. I saw the system decline to answer from chunks that were close, in terms of topics, but didn't hold the answer. 
 
 
 ---
