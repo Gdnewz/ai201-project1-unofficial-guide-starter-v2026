@@ -8,11 +8,19 @@ Goodnews (Goody) Idowu — corpus: `campus_life`
 
 ## What This Does
 
-<!-- Three or four sentences. Which corpus you picked, and the kinds of
-     questions your system answers. Write it for someone who has never seen
-     this repo.
+I picked the campus_life corpus, which has 88 short posts about one fictional
+university that were written by students rather than the administration,
+covering admin rules like deadlines and the pass/fail option, workload and exam
+notes for nine courses, reviews of each dining hall, and write-ups of each dorm
+down to laundry costs and the noise levels. The voice is people informing
+everyone what they wish they had known, which is where the Unofficial Guide
+name comes from.
 
-     Milestone 5. -->
+My system answers specific factual questions about that campus, for example,
+when the deadline to declare a course pass/fail falls or how noisy it gets in
+Innisfree Hall. It searches and finds the posts closest to the question, only
+answers from them, names the sources, and says it does not have enough
+information rather than creating facts when nothing is close enough.
 
 ## Chunking Strategy
 
@@ -39,8 +47,8 @@ For overlap I picked 70 because that is roughly one short sentence. It carries
 context across a boundary without duplicating a meaningful share of the chunk.
 I first thought about 200, but that is half the ceiling I started with, so
 every chunk would be mostly a copy of the one before it, and two near identical
-chunks would eat two of my five retrieval slots. I also thought about 10, but
-two words of carryover protect nothing. I got to 70 by elimination.
+chunks would eat two of my retrieval slots. I also thought about 10, but two
+words of carryover protect nothing. I got to 70 by elimination.
 
 **I changed my mind twice while doing this.**
 
@@ -151,41 +159,142 @@ failing.
 
 ## Sample Answer
 
-<!-- One complete question and answer, pasted as text, with the source line
-     visible. Milestone 4. -->
-
-**Question:**
+**Question:** can i upgrade my meal plan mid-semester?
 
 **Answer:**
 
 ```
+  (best distance 0.271, cutoff 0.6)
+
+No, you cannot upgrade your meal plan mid-semester. Meal plan tier changes can
+only be made once, during the first ten days of the semester, after which the
+plan is locked (admin_meal_plan_changes.txt).
+
+Sources retrieved: admin_meal_plan_changes.txt, dining_verrill_street_grill.txt
 ```
 
-**My relevance cutoff:**
+Worth noting what the second retrieved chunk was. `dining_verrill_street_grill.txt`
+is a review of the burger and the Friday evening wait times, and it has nothing
+to do with meal plan tiers. It came back at 0.542 because it shares the words
+dining and food with my question. The model ignored it completely and answered
+only from the first chunk, which is the grounding instruction doing its job.
 
-<!-- The number you set in config.py, and how you got there.
+**How many chunks I retrieve:** 2 (TOP_K in config.py, down from 5)
 
-     You ran five questions your corpus covers and the five in OUT_OF_SCOPE
-     that it clearly doesn't, and wrote down the best distance for each. What
-     did those two groups look like? Where was the gap? Put the actual numbers
-     here — the table below wants all ten rows.
+I ran all five of my questions through `app.py retrieve` and looked at where
+the answer sat and where the distances jumped.
 
-     Milestone 4. -->
+| Question | #1 | #2 | #3 | #4 | #5 |
+|---|---|---|---|---|---|
+| meal plan mid-semester | **0.271** | 0.542 | 0.566 | 0.591 | 0.599 |
+| grade appeal | **0.305** | 0.667 | 0.681 | 0.720 | 0.755 |
+| pass/fail deadline | **0.274** | 0.441 | 0.525 | 0.598 | 0.599 |
+| study abroad aid | **0.295** | 0.638 | 0.692 | 0.764 | 0.772 |
+
+The answer was at position 1 every time, and the drop to position 2 is huge in
+every case. Positions 2 through 5 all sit between 0.44 and 0.77, which is the
+same band my out-of-scope questions land in. They are noise.
+
+My data alone would say 1, but five questions is a small sample and all five
+are ones I wrote on purpose to point at documents I had read. That is the best
+case, not the typical one. If a future question has its answer at position 2
+and I only retrieve 1, the model gets nothing useful and refuses a question my
+corpus can actually answer. I picked 2 because position 2 has never been needed
+across five questions, and everything from position 2 down scores in the same
+range as questions the corpus cannot answer at all.
+
+It also made the answers cheaper. The meal plan question used 538 tokens at
+TOP_K 5 and 310 at TOP_K 2, and the answer did not lose a single detail.
+
+**My relevance cutoff:** 0.6 (THRESHOLD in config.py, unchanged)
 
 | Question | In corpus? | Best distance |
 |---|---|---|
-|  |  |  |
+| are there penalties for declaring my major late? | yes | 0.228 |
+| can i upgrade my meal plan mid-semester? | yes | 0.271 |
+| when is the deadline to declare a course pass/fail? | yes | 0.274 |
+| does my financial aid package travel with me? | yes | 0.295 |
+| can i appeal my grade without passing through my instructor? | yes | 0.305 |
+| What is the capital of Mongolia? | no | 0.825 |
+| What is the recommended dosage of ibuprofen for a headache? | no | 0.844 |
+| Who won the 1994 World Cup? | no | 0.886 |
+| How do I write a for loop in Rust? | no | 0.896 |
+| How do I change the oil in a diesel engine? | no | 0.934 |
+
+My worst in-corpus question is 0.305 and my best out-of-scope question is
+0.825. That is a gap of 0.52 with nothing at all in it. The guide says most
+corpora land between 0.45 and 0.75, so anything in that whole range would
+separate my two groups perfectly. The starter's 0.6 already sits in the middle
+of my gap, so I measured and left it where it was rather than moving a number
+for the sake of moving it.
+
+I do not think the clean separation says my system is good. It says my
+questions are good. My first set of questions, the ones I picked by topic
+instead of by document, landed at 0.593, 0.601, 0.625, 0.663 and 0.716. Those
+sit right inside this gap, and with that set the cutoff would have been
+genuinely hard to place. Rewriting the questions to aim at documents is what
+made the gap clean.
+
+There is also one thing no cutoff can fix, and I hit it in Milestone 2. I asked
+whether I could change my major without enough credits and got 0.513, well
+under the cutoff, and the model still said the documents did not discuss it.
+The chunks were about the right topic but did not hold the answer. Lowering the
+threshold far enough to catch that would also throw away good questions scoring
+0.497. That is why my fifth criterion exists: the gate catches the clear
+misses, the grounding instruction catches the near ones.
 
 ## How I Used AI
 
-<!-- Two specific moments. For each: what you asked for, what came back, and
-     what you changed about it.
+**1. I asked Claude to write the chunking function from my notes, and it added
+a rule I had not asked for.**
 
-     Milestone 5. -->
+I had already decided on sentence boundaries, a ceiling, and 70 characters of
+overlap, and I asked for code that did that. What came back also included a
+tail-fold rule: if the leftover piece at the end of a document was under 170
+characters, glue it back onto the chunk before it. I had not asked for that. It
+was Claude's way of handling the 2 character chunk problem the guide mentions
+on `advice_threads`.
 
-**1.**
+I kept it, but it is the reason my ceiling broke. At a ceiling of 400 that fold
+fired on five documents, glued each tail back on, and recreated whole documents
+as single chunks of up to 513 characters, over my own 400 limit. I only found
+it because I sorted my chunks by length and noticed the five longest were all
+index #0, meaning nothing had actually split.
 
-**2.**
+What I changed was not the code but my understanding of the tradeoff. I tested
+three ceilings, found that 230 fixed the top and broke the bottom, and worked
+out that the fold only protects the last chunk of a document and never the ones
+in the middle. That is written up in my Chunking Strategy section. If I had
+taken the code without reading it I would have reported 89 chunks and thought
+my chunker worked.
+
+**2. Claude made a prediction about my corpus and it was wrong, and finding
+that out is what produced my actual evidence.**
+
+I was trying to decide my ceiling. `housing_old_brewhouse.txt` is 563
+characters and covers six subjects, and Claude predicted that asking about the
+laundry cost buried inside it would retrieve badly, because a chunk covering
+six things matches no single question strongly.
+
+I ran it and got 0.211, my best distance of the whole project. The prediction
+was wrong, because there is a dedicated `housing_old_brewhouse_laundry.txt`
+that did the work instead.
+
+So I tested the case with no dedicated file. Heating is mentioned only inside
+the six subject document, and it scored 0.363. Same building, same question
+style, a gap of 0.152. That number is the evidence my whole ceiling argument
+rests on, and I would not have it if the first prediction had been right.
+
+What I took from this is to test the claim rather than the story. The
+explanation sounded convincing both times. Only one of them was measurable.
+
+**3. I used Claude to tidy up the grammar of this README.**
+
+The measurements, the decisions and the reasoning in here are mine, out of my
+own terminal. I wrote them up rough and had Claude clean up the grammar and
+tighten the wording, then went back over it. I am saying so because it would be
+odd to have a section about how I used AI that did not mention the AI I used on
+the section itself. The What This Does section is my own writing, untouched.
 
 ---
 
