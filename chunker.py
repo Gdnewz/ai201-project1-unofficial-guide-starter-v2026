@@ -22,10 +22,17 @@ to it, write down what you saw, and move on. That's a real observation about
 your pipeline, not giving up.
 """
 
+import re
 from dataclasses import dataclass
 
 import config
 from ingest import Document
+
+
+# Splits after a sentence-ending mark followed by whitespace. Lines without
+# terminal punctuation (headings, for example) stay attached to the sentence
+# that follows them instead of becoming orphans.
+SENTENCE_END = re.compile(r'(?<=[.!?])\s+')
 
 
 @dataclass
@@ -40,6 +47,20 @@ class Chunk:
     @property
     def label(self) -> str:
         return f"{self.source}#{self.index}"
+
+
+def _tail_of(text: str, length: int) -> str:
+    """
+    The last `length` characters of `text`, trimmed forward so the carried-over
+    text starts at a word boundary rather than in the middle of a word.
+    """
+    if length <= 0:
+        return ""
+    if len(text) <= length:
+        return text
+    tail = text[-length:]
+    space = tail.find(" ")
+    return tail[space + 1:] if space != -1 else tail
 
 
 def fallback_split(
@@ -82,22 +103,70 @@ def fallback_split(
 
 def split_documents(documents: list[Document]) -> list[Chunk]:
     """
-    Split documents into chunks. ⚠️ REPLACE THE BODY OF THIS IN MILESTONE 3.
+    Split documents into chunks on sentence boundaries.
 
-    Right now it just calls the fallback. That is the plain, generic behaviour
-    the brief is talking about.
+    Strategy, and why:
 
-    When you write your own strategy, set `produced_by` to
-    "chunker.py::split_documents" so your README's Sample Chunks section names
-    the right function. `app.py chunks` prints that string for you.
-
-    Things worth thinking about before you write any code:
-      - Are your documents short posts or long guides?
-      - Is the useful information in one sentence, or spread over a paragraph?
-      - Would splitting on paragraph breaks keep more thoughts intact than
-        splitting on a character count?
+      - Sentences are never cut in half. The documents in campus_life are short
+        and written in complete sentences, so a boundary in the middle of one
+        would strand a fragment that answers nothing.
+      - Sentences accumulate until adding the next one would exceed the ceiling
+        in config.CHUNK_SIZE. The ceiling exists because a chunk covering many
+        subjects embeds as an average of all of them and matches no single
+        question strongly.
+      - Each chunk after the first carries config.CHUNK_OVERLAP characters from
+        the end of the previous one, so context crosses the boundary.
+      - A leftover tail shorter than config.CHUNK_MIN is folded back into the
+        chunk before it, rather than emitted as a fragment.
     """
-    return fallback_split(documents)
+    chunk_size = config.CHUNK_SIZE
+    overlap = config.CHUNK_OVERLAP
+    minimum = getattr(config, "CHUNK_MIN", 170)
+
+    if overlap >= chunk_size:
+        raise ValueError("overlap has to be smaller than chunk_size")
+
+    chunks: list[Chunk] = []
+
+    for doc in documents:
+        sentences = [s.strip() for s in SENTENCE_END.split(doc.text) if s.strip()]
+
+        # Group whole sentences together without exceeding the ceiling. Groups
+        # after the first reserve room for the overlap text prepended below, so
+        # the finished chunk still lands under chunk_size.
+        groups: list[str] = []
+        current = ""
+        for sentence in sentences:
+            budget = chunk_size if not groups else chunk_size - overlap
+            candidate = f"{current} {sentence}".strip()
+            if current and len(candidate) > budget:
+                groups.append(current)
+                current = sentence
+            else:
+                current = candidate
+        if current:
+            groups.append(current)
+
+        # A tail below the floor is not worth retrieving on its own.
+        if len(groups) > 1 and len(groups[-1]) < minimum:
+            tail = groups.pop()
+            groups[-1] = f"{groups[-1]} {tail}"
+
+        for index, group in enumerate(groups):
+            if index == 0:
+                text = group
+            else:
+                text = f"{_tail_of(groups[index - 1], overlap)} {group}".strip()
+            chunks.append(
+                Chunk(
+                    text=text,
+                    source=doc.source,
+                    index=index,
+                    produced_by="chunker.py::split_documents",
+                )
+            )
+
+    return chunks
 
 
 def describe(chunks: list[Chunk]) -> str:

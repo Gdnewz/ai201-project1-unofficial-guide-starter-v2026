@@ -1,19 +1,6 @@
 # The Unofficial Guide
 
-<!-- Replace this line with your name and which corpus you picked. -->
-
-> **This file is your submission.** Fill it in as you go — most sections get
-> written during the milestone that produces them, not at the end.
->
-> How the starter works, and every command you'll need, is in `RUNNING.md`.
-> Leave that file alone.
->
-> **Paste everything as text.** No screenshots, no video. A typed table gets
-> full credit; a picture of the same table gets none.
->
-> Delete these instruction blocks as you replace them. The `<!-- -->` comments
-> are notes to you and don't show up when the page renders — you can leave them
-> or remove them.
+Goodnews (Goody) Idowu — corpus: `campus_life`
 
 ---
 
@@ -29,54 +16,138 @@
 
 ## Chunking Strategy
 
-**Chunk size:**
-**Overlap:**
+**Chunk size:** 300 characters (a ceiling, not a fixed width)
+**Overlap:** 70 characters
 
-<!-- What about YOUR documents made you pick these numbers? Short posts and
-     long sectioned guides don't want the same chunking, and "800 seemed
-     reasonable" earns nothing. Point at something you noticed when you read
-     the documents in Milestone 1.
+I split on sentence boundaries instead of at a fixed character count. The
+documents in `campus_life` are short and written in full sentences, so cutting
+through the middle of one leaves a fragment that cannot answer anything. I saw
+this clearly in the `advice_threads` corpus. One chunk there held a question
+and four replies, and the replies referred back to each other. One of them
+reads "Counterpoint, I sold mine." Split per reply, that piece is retrievable
+and completely meaningless.
 
-     If you changed your mind partway through, say so and say why. That's worth
-     more than pretending you got it right first time.
+Sentences have whatever length they have, so 300 is a ceiling I accumulate
+toward, not an exact size. The chunker adds one sentence at a time and closes
+the chunk when the next one would push it past 300. If the leftover tail is
+under 170 characters, it gets folded back into the chunk before it. That is
+what stops me producing the kind of fragment the starter produces on
+`advice_threads`, where a document that did not divide evenly left a 2
+character chunk.
 
-     Milestone 3. -->
+For overlap I picked 70 because that is roughly one short sentence. It carries
+context across a boundary without duplicating a meaningful share of the chunk.
+I first thought about 200, but that is half the ceiling I started with, so
+every chunk would be mostly a copy of the one before it, and two near identical
+chunks would eat two of my five retrieval slots. I also thought about 10, but
+two words of carryover protect nothing. I got to 70 by elimination.
+
+**I changed my mind twice while doing this.**
+
+I started with a ceiling of 400, because I had measured what mixing costs.
+`housing_old_brewhouse.txt` is 563 characters and covers six different
+subjects: the building history, the rooms, its character, the heating, the
+laundry, and the noise. I asked two questions about that same building. Laundry
+has its own dedicated file and scored 0.211. Heating only exists inside the six
+subject file and scored 0.363. That is a gap of 0.152, and that is what a mixed
+chunk costs me.
+
+Both answers were still correct, so what I am losing is margin, not
+correctness. Margin matters because earlier I asked the same question two
+slightly different ways and got 0.593 and 0.601. Those sit on opposite sides of
+the 0.6 cutoff, so one was answered and one was refused.
+
+At a ceiling of 400 I got 89 chunks from 88 documents. Only one document
+actually split. Five documents split and then got put back together, because
+the leftover tail came out under my 170 floor and my fold glued it back on.
+That recreates the whole document as one chunk, and that chunk is over the
+ceiling. My longest was 513 characters, which breaks my own criterion.
+
+The reason is simple once you see it. A document only slightly longer than the
+ceiling leaves a tiny leftover. Worst case, the chunk ends up at about the
+ceiling plus the floor.
+
+At 300 I got 97 chunks. Nine documents split, the shortest chunk was 177 and
+the longest came down to 420. Three chunks still go over my 400 ceiling.
+
+I also tried 230, since ceiling plus floor would then be exactly 400. That
+fixed the top and broke the bottom. The longest dropped to 378, but the
+shortest fell to 88, which is well under my floor. The reason is that my fold
+only protects the last chunk of a document and never checks the ones in the
+middle. With a smaller budget, one long sentence can force a chunk to close
+early and nothing catches it.
+
+So I settled on 300. The floor holds at 177, nine documents actually split
+instead of one, and only three chunks go over the ceiling. None of the three
+settings satisfies both of my bounds, because this algorithm cannot do it. To
+fix it properly I would have to merge undersized middle chunks as well as
+tails, and I did not do that in this unit. I am writing it down rather than
+hiding it, because I set both bounds before I had a chunker and the data showed
+me they do not both hold.
 
 ## Sample Chunks
 
-<!-- Five chunks, pasted as text. Label each one and name the file it came from
-     AND the function that produced it — the grader checks your code against
-     what you claim here.
+Produced by `chunker.py::split_documents` at chunk size 300, overlap 70.
 
-     `python app.py chunks -n 5` prints all three for you. Copy them straight
-     across.
-
-     Milestone 3. -->
-
-**Chunk 1** — source: `` — produced by: ``
+**Chunk 1** — source: `admin_add_drop_deadline.txt#0` — produced by: `chunker.py::split_documents`
 
 ```
+On the add/drop deadline
+
+You can add a course through the end of the second week. Dropping is a longer window — through the end of week six — but a drop after week two shows as a W on your transcript. Nothing anywhere on the registrar's site says this plainly, and students find out from each other.
 ```
 
-**Chunk 2** — source: `` — produced by: ``
+**Chunk 2** — source: `course_biol_160_workload.txt#0` — produced by: `chunker.py::split_documents`
 
 ```
+Workload for BIOL 160 Cell Biology
+
+People keep asking so: 9 to 11 hours a week, the heaviest first-year course by reputation. That's real time, not optimistic time. It's front-loaded — the first month is heavier than the rest, partly because you're learning the format.
 ```
 
-**Chunk 3** — source: `` — produced by: ``
+**Chunk 3** — source: `course_math_220_workload.txt#0` — produced by: `chunker.py::split_documents`
 
 ```
+Workload for MATH 220 Linear Algebra
+
+People keep asking so: 6 to 8 hours a week, almost all of it on problem sets. That's real time, not optimistic time. It's front-loaded — the first month is heavier than the rest, partly because you're learning the format.
 ```
 
-**Chunk 4** — source: `` — produced by: ``
+**Chunk 4** — source: `dining_the_ridgeway_cafe_followup.txt#0` — produced by: `chunker.py::split_documents`
 
 ```
+Re: The Ridgeway Café
+
+Adding to what people have said about The Ridgeway Café. The wait figure of 10 to 15 minutes at 12:30 matches what I've seen. If you're trying to eat between classes, go before 11:45 and it's a different building entirely. Also worth saying: seating is tight; about 40 seats for a building of 900. Nobody tells you this at orientation.
 ```
 
-**Chunk 5** — source: `` — produced by: ``
+**Chunk 5** — source: `housing_innisfree_hall_noise.txt#0` — produced by: `chunker.py::split_documents`
 
 ```
+Noise levels in Innisfree Hall
+
+Asked about this a lot so writing it down. Moderate; the building is l-shaped and the short wing is much quieter. If you're someone who needs quiet to work, the library is open until 2am during term and that's what most people in this building end up doing.
 ```
+
+All five of these stand on their own. The reason is that every document in this
+corpus starts with a heading line that names its subject, and a heading has no
+ending punctuation, so my sentence splitter keeps it attached to the text that
+follows. I did not plan that when I wrote the rule, but it is what makes these
+chunks answerable. Take the heading off chunk 2 and it reads "9 to 11 hours a
+week, the heaviest first-year course by reputation" with no way to tell what
+course that is.
+
+Two things I noticed reading them, and both come from the corpus rather than my
+code. Chunks 2 and 3 are near duplicates in wording. Both say "People keep
+asking so:", both say "That's real time, not optimistic time," and both end
+with the same front-loaded sentence. Only the course name and the hours change.
+So a general question like "how heavy is the workload?" will match a dozen of
+these about equally and fill all five of my slots with near identical text.
+
+Chunk 4 is the weakest of the five. It opens with "Adding to what people have
+said about The Ridgeway Café," which leans on a conversation that is not in the
+chunk. It still carries hard facts, so it passes, but it is the closest one to
+failing.
 
 ## Sample Answer
 
@@ -110,20 +181,11 @@
 <!-- Two specific moments. For each: what you asked for, what came back, and
      what you changed about it.
 
-     "I asked Claude to write the chunking function from my notes. It ignored
-     the overlap, so I added that myself" is the level of detail we're after.
-     "I used AI to help me code" is not.
-
      Milestone 5. -->
 
 **1.**
 
 **2.**
-
-<!-- ── Stretch features ─────────────────────────────────────────────────────
-     Doing one? Say so here BEFORE you start. A feature this README never
-     claims earns nothing.
-     ───────────────────────────────────────────────────────────────────────── -->
 
 ---
 
@@ -135,16 +197,6 @@
 
 ## Run Log — Before
 
-<!-- Your five criteria, three runs each. `python run_eval.py --label before`
-     runs the questions, puts the OUT_OF_SCOPE ones through the gate, and
-     writes it all into results/ for you. Targets come from criteria.md; the
-     verdict column is your call.
-
-     Criterion 3 is measured in one deterministic pass rather than three, so
-     the same number goes in all three run columns. That's correct, not lazy.
-
-     Milestone 1. -->
-
 | Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
 |---|---|---|---|---|---|
 | 1. Retrieved chunk contains the answer | 4 of 5 |  |  |  |  |
@@ -153,20 +205,7 @@
 | 4. | | | | | |
 | 5. | | | | | |
 
-<!-- Underneath, paste the REAL output for each criterion from one of your
-     runs — the actual text your system produced, not a description of it.
-     Name the file and function that produced it. -->
-
 ## Verdicts
-
-<!-- MET or MISSED for each of the five, against the target you wrote last
-     unit — not a new one. Plus a sentence on how you decided. That sentence
-     matters most where it was close.
-
-     If your target said 4 of 5 and your runs came out 4, 3, 4, that's a MISS.
-     The target has to hold, not show up occasionally.
-
-     Milestone 2. -->
 
 | # | Criterion | Verdict | How I decided |
 |---|---|---|---|
@@ -178,37 +217,13 @@
 
 ## Diagnoses
 
-<!-- For each miss: which stage caused it, and how. The stage alone isn't
-     enough — you need the mechanism.
-
-     Not a diagnosis: "Question 3 didn't work."
-     A diagnosis:     "Question 3 asks about laundry costs. The answer is in
-                       one sentence that got split across two chunks, so
-                       neither chunk on its own contains it."
-
-     The five stages: loading → chunking → embedding → retrieval → generation.
-
-     Look for a pattern. If three misses all ask about numbers, that's one
-     problem, not three.
-
-     Missed nothing? Say so, then say honestly whether your targets were set
-     low, and which one you'd tighten and to what.
-
-     Milestone 3. -->
-
 ## The Improvement
 
 **What I changed:**
 
 **Why I picked it:**
 
-<!-- Connect it to a specific diagnosis above in one sentence. If you can't,
-     you picked a fix because it sounded impressive. -->
-
 ### Run Log — After
-
-<!-- Same format, same five criteria, three runs each.
-     `python run_eval.py --label after` -->
 
 | Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
 |---|---|---|---|---|---|
@@ -220,26 +235,6 @@
 
 **Did it help?**
 
-<!-- Say plainly whether it did, and how you know. If it made things worse,
-     say that — a change that backfired, honestly reported, earns full credit
-     and is more interesting than one that worked. What matters is that you can
-     tell.
-
-     Milestone 4. -->
-
 ## What's Still Broken
 
-<!-- For each criterion still missed after your fix: what you'd do about it,
-     and why you stopped where you did.
-
-     "I ran out of time" is fine if it's true. Pretending nothing is left is
-     not.
-
-     Milestone 5. -->
-
 ## What I'd Do Differently
-
-<!-- Knowing what you know now — which of your five criteria would you write
-     differently, and why?
-
-     Milestone 5. -->

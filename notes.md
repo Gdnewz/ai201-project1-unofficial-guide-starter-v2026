@@ -332,3 +332,109 @@ is deliberately not ignored by git, because they are the evidence that the
 
 test actually ran.
 
+MILESTONE 3: THE CHUNKER
+
+WHAT THE STARTER WAS DOING
+The starter cuts fixed 800 character windows with overlap and ignores where
+sentences end. My longest document is 563 characters, so it never reached 800
+and never split anything. 88 documents, 88 chunks. The summary line looked
+fine until I realised it meant the chunker had done no work at all.
+
+The guide calls that a bug outright, and points out the same chunker turns
+city_guides into 51 chunks from 14 documents, and produces a 2 character chunk
+on advice_threads from a document that did not divide evenly. Same code, three
+different failures depending on the corpus.
+
+WHAT I CHANGED
+Split on sentence boundaries. Accumulate sentences until the next one would
+push past a ceiling, then start a new chunk carrying 70 characters from the end
+of the previous one. Fold a leftover tail under 170 characters back into the
+chunk before it.
+
+MISTAKE 1: I CONFUSED FILES
+I pasted chunker.py and called it config.py. They are different files.
+chunker.py holds the logic; config.py holds the numbers the logic reads. The
+lines chunk_size = config.CHUNK_SIZE are READING a value, not setting one. I
+tried to edit the wrong one.
+
+MISTAKE 2: I THOUGHT THE FLOOR WAS THE GUIDE'S IDEA
+I nearly changed my 170 floor to make the numbers work. It is not in the guide
+at all. It came from criterion 4, which I wrote myself. The criteria page says
+changing a criterion earns credit only when the criterion was broken, meaning
+it measured the wrong thing. Missing the number is the case where the target
+stays exactly where it is. Mine is measurable and I am failing it, so it stays.
+
+MISTAKE 3: I CONFUSED THE CONFIG KNOB WITH THE CRITERION
+Lowering CHUNK_SIZE is not the same as changing criterion 4. The criterion says
+no chunk over 400. The knob is what the chunker aims at. Aiming at 300 keeps
+every chunk well under 400, so lowering the knob is a design choice and does
+not touch the criterion at all.
+
+WHAT I MEASURED
+
+  Ceiling 400   89 chunks   average 313   shortest 177   longest 513
+  Ceiling 300   97 chunks   average 292   shortest 177   longest 420
+  Ceiling 230  123 chunks   average 244   shortest  88   longest 378
+
+At 400, five documents split and were immediately reassembled. The five
+longest chunks were all index #0, meaning single chunks: innisfree_hall 513,
+morrow_house 458, calder_annexe 427, cs_340 424, fenwick_court 422. Every one
+of them is a whole document that had been split and glued back together.
+
+THE MECHANISM, IN PLAIN WORDS
+The chunker fills a chunk up to the ceiling and puts what is left into a new
+one. If a document is comfortably longer than the ceiling, the leftover is big
+enough to stand alone and the document splits. If a document is only slightly
+longer, the leftover is tiny, and my fold glues it back on, which recreates the
+whole document as one chunk that is over the ceiling.
+
+So the worst case is roughly ceiling plus floor. At 400 that is 570 and I
+measured 513. At 300 that is 470 and I measured 420.
+
+WHY 230 DID NOT WORK EITHER
+Ceiling plus floor would be exactly 400, so I expected it to satisfy the
+criterion. The longest did drop to 378. But the shortest fell to 88, well under
+my floor.
+
+The reason is that my fold only protects the LAST chunk of a document. It never
+checks the ones in the middle. At a ceiling of 230, the budget for later chunks
+is 160, and a chunk closes the moment the next sentence will not fit. So a
+chunk holding 88 characters closes and gets emitted when the next sentence is
+150 characters long. Nothing catches it.
+
+So the smaller the ceiling, the more often a single long sentence forces an
+early close, and the more undersized middle chunks appear.
+
+WHAT I SETTLED ON AND WHY
+300. The floor holds at 177, nine documents actually split instead of one, and
+only three chunks exceed my 400 ceiling. None of the three settings satisfies
+both bounds, because this algorithm cannot. Fixing it properly means merging
+undersized middle chunks as well as tails, which I did not do in this unit.
+
+Whether the system works is not graded in this unit. What is graded is whether
+the README describes the system I actually built. So I am reporting the
+conflict rather than hiding it.
+
+READING THE FIVE CHUNKS
+All five passed the self containment test. The reason is that every document in
+this corpus opens with a heading line naming its subject, and a heading has no
+ending punctuation, so my sentence splitter keeps it attached to the text that
+follows. That was not deliberate when I wrote the rule, but it is what makes
+the chunks answerable. Strip the heading off the BIOL 160 chunk and it reads
+"9 to 11 hours a week" with no way to tell of what.
+
+Two problems I noticed that come from the corpus rather than my code:
+
+Chunks 2 and 3 are near duplicates in wording. Both course workload files use
+the same boilerplate sentences and differ only in the course name and the
+hours. A general workload question will match a dozen of these about equally
+and fill all five retrieval slots with near identical text.
+
+Chunk 4 opens with "Adding to what people have said about The Ridgeway Café,"
+which leans on a conversation that is not in the chunk. It carries hard facts
+so it survives, but it is the closest of the five to failing.
+
+STILL OPEN
+More chunks means each of my five retrieval slots carries less text, so the
+model gets less total context. That is worth watching in Milestone 4 when I
+tune retrieval and the cutoff.
