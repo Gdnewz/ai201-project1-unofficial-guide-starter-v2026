@@ -626,3 +626,159 @@ of one document each. Now that the corpus is 97 chunks, those distances may
 
 have moved. I should re run them before I set the cutoff.
 
+
+
+=============================================================================
+PART 3: MILESTONES 4 AND 5, RETRIEVAL AND THE CUTOFF
+=============================================================================
+
+
+RE RUNNING MY FIVE QUESTIONS AFTER RE CHUNKING
+
+I said at the end of Part 2 that I should re run my five questions, because
+the corpus went from 88 chunks to 97 and the old distances might have moved.
+
+They did not move at all. 0.228, 0.305, 0.271, 0.274, 0.295, identical to
+before.
+
+The reason is that all five of my questions point at short admin documents,
+and none of those is anywhere near 300 characters, so none of them split. Only
+the nine long documents changed, and none of my questions is about those. If I
+had written questions about Old Brewhouse or Innisfree Hall the numbers would
+probably have moved.
+
+Worth remembering: a corpus level change does not automatically show up in my
+measurements. It only shows up if my questions touch the part that changed.
+
+
+WHAT RETRIEVAL WAS ACTUALLY RETURNING
+
+app.py retrieve prints the chunks with their distances, which ask does not. I
+ran all five through it.
+
+  Question                    #1       #2      #3      #4      #5
+  meal plan mid-semester      0.271    0.542   0.566   0.591   0.599
+  grade appeal                0.305    0.667   0.681   0.720   0.755
+  pass/fail deadline          0.274    0.441   0.525   0.598   0.599
+  study abroad aid            0.295    0.638   0.692   0.764   0.772
+
+The answer was at position 1 every single time. The drop from 1 to 2 is
+enormous in every case. Positions 2 through 5 all sit between 0.44 and 0.77,
+which is the same band my out of scope questions land in. They are noise.
+
+For the meal plan question, what was actually in slots 2 through 5 was a
+review of the burger at Verrill Street Grill, a post about dining dollars, and
+a post about campus jobs. None of them about meal plan tiers. They came back
+because they share the words dining and food with my question.
+
+Two of those five slots were both Verrill Street Grill, one document that my
+new chunker had split into two chunks. So one document was taking two slots.
+That is the crowding I was worried about when I picked my overlap number.
+
+
+WHY I SET TOP_K TO 2
+
+My data on its own would say 1. The answer was never below position 1.
+
+I did not go to 1 because five questions is a small sample, and all five are
+ones I wrote on purpose to aim at documents I had read. That is the best case,
+not the typical case. If a future question has its answer at position 2 and I
+only retrieve 1, the model gets nothing useful and refuses a question my
+corpus can actually answer. That is a worse failure than carrying one extra
+chunk.
+
+So 2. Position 2 has never been needed across five questions, and everything
+from position 2 down scores in the same range as questions the corpus cannot
+answer at all.
+
+It also made answers cheaper. The meal plan question used 538 tokens at TOP_K
+5 and 310 at TOP_K 2, and the answer did not lose a single detail. It actually
+read better, because it led with a direct no.
+
+TOP_K takes effect immediately. No re indexing needed.
+
+
+SETTING THE CUTOFF
+
+  In corpus                                     Out of scope
+  declaring major late        0.228             capital of Mongolia      0.825
+  meal plan mid-semester      0.271             ibuprofen dosage         0.844
+  pass/fail deadline          0.274             1994 World Cup           0.886
+  study abroad aid            0.295             for loop in Rust         0.896
+  grade appeal                0.305             diesel oil change        0.934
+
+Worst in corpus 0.305. Best out of scope 0.825. A gap of 0.52 with nothing in
+it. The guide says most corpora land between 0.45 and 0.75, so my whole gap is
+wider than the range they expect the answer to be in.
+
+The starter's 0.6 already sat in the middle of my gap, so I measured and left
+it. Moving it would have been changing a number for the sake of changing it.
+
+The honest reading is that the clean separation says my questions are good,
+not that my system is good. My first set of questions, picked by topic instead
+of by document, landed at 0.593, 0.601, 0.625, 0.663 and 0.716. Those sit
+right inside this gap. With that set the cutoff would have been genuinely hard
+to place and I would have had to accept losing some real questions.
+
+Out of scope questions cost nothing to run. A refusal never reaches the model,
+so it is 0 model calls every time.
+
+
+THE GROUNDING INSTRUCTION WAS ALREADY THERE
+
+Milestone 4 asks for a grounding instruction as a second layer. I went looking
+in generate.py and found GROUNDING_INSTRUCTION already written. It says use
+only the documents, say you do not have enough information if they do not
+cover it, name the file, and be brief.
+
+That explains two things I had already seen without understanding why. The
+credits question cleared the gate at 0.513 and the model still refused, which
+was this instruction, not luck. And criterion 2, every answer names a source,
+passes because of the third rule in it.
+
+app.py ask "..." --show-prompt prints exactly what gets sent. Worth running
+once. Seeing the retrieved chunks laid out as Documents: with the question
+underneath made it obvious that retrieval, not the model, decides what an
+answer can possibly be based on.
+
+The clearest evidence it works: the meal plan prompt included the Verrill
+Street Grill burger review, and the model ignored it completely and answered
+only from the meal plan document.
+
+Something I considered and did not do: adding a fourth rule telling the model
+to include specific numbers and deadlines. Two of my Milestone 2 answers were
+correct but skipped a figure that was sitting in the chunks. That rule would
+work against the "be brief" rule already in there, so it is a real tradeoff
+rather than a free improvement. Candidate for Unit 2.
+
+
+THE TWO LAYERS, AND WHAT NEITHER CATCHES
+
+  The gate   catches questions where nothing is close.       Mongolia, 0.825.
+  The prompt catches questions where things are close but
+             the answer is not there.                        credits, 0.513.
+
+Neither catches an answer that is correct but incomplete. That is a third
+thing, and it is what my fifth criterion is really testing.
+
+
+WHAT I AM CARRYING INTO UNIT 2
+
+Three chunks still break my own 400 ceiling. Reported, not hidden. The real
+fix is merging undersized middle chunks as well as tails, or splitting
+documents into roughly equal pieces instead of filling the front greedily.
+
+The course workload files share boilerplate wording. A general question like
+"how heavy is the workload?" will match a dozen of them about equally. With
+TOP_K 2 that means both my slots could fill with near identical text about two
+different courses. I have not tested that.
+
+Criteria 1 and 5 need a human judgment call. 2, 3 and 4 are mechanical.
+
+Unit 2 wants three runs per criterion through run_eval.py, verdicts against
+the targets I already set rather than new ones, a diagnosis per miss naming
+both the stage and the mechanism, one improvement tied to a specific
+diagnosis, and an honest answer on whether it helped.
+
+Caching is off during evaluation. run_eval.py passes cache=False, so three
+runs are three real answers rather than one answer three times.
