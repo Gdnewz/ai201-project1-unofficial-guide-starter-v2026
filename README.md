@@ -283,8 +283,6 @@ it. The What This Does section is untouched.
 
 # Unit 2
 
-# Unit 2
-
 <!-- These sections get ADDED to what's already above. Don't delete or rewrite
      unit 1 — the point is that someone can see what you said before you knew
      how it went. -->
