@@ -23,11 +23,17 @@ names a target of "4 of 5", and four of three is not a thing.
 
 QUESTIONS = [
     # {"question": "...", "expects": "..."},
-    {"question": "are there penalties for declaring my major late ? ", "expects": "no penalty"},
-    {"question": "can i appeal my grade without passing through my instructor?  ", "expects": "returned"},
+
+    # ORIGINAL: {"question": "are there penalties for declaring my major late ? ", "expects": "no penalty"},
+    # Revised 2026-09-23: plural "penalties" in the question led the model to echo
+    # "no penalties" in 1 of 3 runs, which misses the "no penalty" anchor. Singular
+    # wording removes that cue. Answer was correct all 3 runs; the miss was grammar.
+    {"question": "is there any penalty for declaring my major late?", "expects": "no penalty"},
+
+    {"question": "can i appeal my grade without passing through my instructor?", "expects": "returned"},
     {"question": "can i upgrade my meal plan mid-semester?", "expects": "first ten"},
     {"question": "when is the deadline to declare a course pass/fail?", "expects": "week eight"},
-    {"question": "i want to study abroad. does my financial aid package travel with me?", "expects": "travels with"} 
+    {"question": "i want to study abroad. does my financial aid package travel with me?", "expects": "travels with"},
 ]
 
 # Questions from a different world entirely. Your gate should refuse all five.
