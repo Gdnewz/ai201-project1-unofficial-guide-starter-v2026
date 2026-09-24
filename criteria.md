@@ -26,7 +26,7 @@ contains the answer.
 <!-- e.g. "One of my questions is about a topic only two documents mention, so
      I expect that one to be hard." -->
 
----
+---my five questions are the best case. with 0.23-0.31 distance so all are expected to hit. I wrote questions after reading the file that answers it. The slack is for questions I didn't write that should hit but might not because they weren't tailored
 
 ## 2. Every answer names a source
 
@@ -36,7 +36,7 @@ Every answer the system produces names at least one source document.
 <!-- Why all five and not four? What about your setup makes that achievable —
      or what would have to go wrong for it not to be? -->
 
----
+---The generate.py has a GROUNDING_INSTRUCTION that has rules:  use only the documents, say you do not have enough information if they do not cover it, name the file, and be brief. The "name the file" rule is what makes every answer name the source. When the model follows the second rule and refuses, the refusal names no file, so the answer would miss criterion 2
 
 ## 3. The relevance gate stops out-of-corpus questions
 
@@ -53,7 +53,7 @@ in at least 4 of 5 tries.
 <!-- What did your distances look like when you set the cutoff in Milestone 4?
      Was there a clean gap, or did the two groups overlap? -->
 
----
+---There was a clean gap. By worst in-corpus 0.305, best out-of-scope 0.825, cutoff 0.6. The gate checks the best distance to the cutoff for the model to even be called, the clean separation says my questions are good, not that my system is good. So a question i did not write could land closer to the cutoff, and the 4 of 5 leaves room for that
 
 ## 4. Something about your chunks
 
