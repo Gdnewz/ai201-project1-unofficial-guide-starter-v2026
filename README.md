@@ -283,19 +283,44 @@ it. The What This Does section is untouched.
 
 # Unit 2
 
+# Unit 2
+
 <!-- These sections get ADDED to what's already above. Don't delete or rewrite
      unit 1 — the point is that someone can see what you said before you knew
      how it went. -->
 
 ## Run Log — Before
-Run: results/run_2026-09-23_2048.md, produced by run_eval.py calling scorer.judge. Before the question 1 reword. Scorer: 14/15.
+
+Run: `results/run_2026-09-23_2048.md`, produced by `run_eval.py` calling `scorer.judge`. Before the question 1 reword. Scorer: 14/15.
+
 | Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
 |---|---|---|---|---|---|
-| 1. Retrieved chunk contains the answer | 4 of 5 |5/5|5/5|5/5|MET|
-| 2. Every answer names a source | 5 of 5 |5/5|5/5|5/5|MET|
-| 3. Gate stops out-of-corpus questions | 4 of 5 |5/5 |5/5|5/5|MET|
-| 4. No chunk is under 170 characters or over 400 characters |0 under 170, 0 over 400|177-420, 3 over 400|177-420, 3 over 400|177-420, 3 over 400|MISSED|
-| 5. For all of my 5 test questions, every fact in the answer must appear in one of the retrieved chunks | 5 of 5 |5/5|5/5|5/5|MET|
+| 1. Retrieved chunk contains the answer | 4 of 5 | 5/5 | 5/5 | 5/5 | MET |
+| 2. Every answer names a source | 5 of 5 | 5/5 | 5/5 | 5/5 | MET |
+| 3. Gate stops out-of-corpus questions | 4 of 5 | 5/5 | 5/5 | 5/5 | MET |
+| 4. No chunk is under 170 characters or over 400 characters | 0 under 170, 0 over 400 | 177-420, 3 over 400 | 177-420, 3 over 400 | 177-420, 3 over 400 | MISSED |
+| 5. For all of my 5 test questions, every fact in the answer must appear in one of the retrieved chunks | 5 of 5 | 5/5 | 5/5 | 5/5 | MET |
+
+Real output for question 1, all three runs, from `results/run_2026-09-23_2048.md`, produced by `run_eval.py` calling `scorer.judge`:
+
+```
+are there penalties for declaring my major late ? — run 1
+Best distance: 0.2283 (passed the gate)
+Sources retrieved: admin_declaring_a_major.txt, admin_pass_fail_option.txt
+No, there is no penalty for declaring your major late.
+Source: admin_declaring_a_major.txt
+
+are there penalties for declaring my major late ? — run 2
+Best distance: 0.2283 (passed the gate)
+Sources retrieved: admin_declaring_a_major.txt, admin_pass_fail_option.txt
+No, there are no penalties for declaring your major late. This information comes from admin_declaring_a_major.txt.
+
+are there penalties for declaring my major late ? — run 3
+Best distance: 0.2283 (passed the gate)
+Sources retrieved: admin_declaring_a_major.txt, admin_pass_fail_option.txt
+No, there is no penalty for declaring your major late.
+Source: admin_declaring_a_major.txt
+```
 
 ## Verdicts
 
@@ -304,57 +329,119 @@ Run: results/run_2026-09-23_2048.md, produced by run_eval.py calling scorer.judg
 | 1 | Retrieved chunk contains the answer | MET | The same source document was retrieved on all three runs for every question, including question 1 run 2 where the scorer said fail. The criterion is about retrieval, not wording, and retrieval did not change. |
 | 2 | Every answer names a source | MET | All 15 answers end with a Source: line naming a file. This comes from the "name the file" rule in GROUNDING_INSTRUCTION. |
 | 3 | Gate stops out-of-corpus questions | MET | Read off run_eval's "gate refused 5 of 5" line. Identical across runs because the gate is deterministic, one number compared to 0.6, no model call. |
-| 4 | No chunk under 170 or over 400 characters | MISSED | From python app.py index: 97 chunks, shortest 177, longest 420, three over 400. Same in all three columns because chunking happens once at index time, not per run. |
+| 4 | No chunk under 170 or over 400 characters | MISSED | From `python app.py index`: 97 chunks, shortest 177, longest 420, three over 400. Same in all three columns because chunking happens once at index time, not per run. |
 | 5 | Every fact in the answer appears in a retrieved chunk | MET | Read all 15 answers against the retrieved chunks. None stated a fact the chunk did not hold. "No penalties" in question 1 run 2 is the same fact as "no penalty", phrased differently, so it does not fail this criterion even though the scorer failed it. |
-## Diagnoses 
-### Criterion 4 — three chunks over 400 (MISSED) 
-Stage: chunking, chunker.py::split_documents.
-Mechanism: the chunker fills to the 300 ceiling and pushes the leftover into a new chunk. When the leftover is under my 170 floor, the tail fold glues it back on, recreating the whole document as one chunk over the ceiling. Worst case is ceiling plus floor, 470; longest measured is 420. All three over 400 are whole
-documents that split and reassembled.Not fixed yet. The real fix is a chunker rewrite that merges undersized middle
-chunks too, and re-indexing would move every distance I have measured. Reported, not hidden.
 
-### Question 1 run 2 — looked like a miss, was not the scorer reported fail on this run, so I checked it against all five criteria. None missed. The source document was retrieved (criterion 1), the answer named it (criterion 2), and every fact in the answer was in the chunk(criterion 5). "No penalties" is the same fact as "no penalty" in different words.
-Stage: scoring, scorer.py::judge. Mechanism: substring check, and "no penalty" is not a substring of "no penalties". Retrieval was identical all three runs. he only thing that moved was the model's wording, and my question had the plural in it, and the model was echoing me.
+## Diagnoses
+
+### Criterion 4 — three chunks over 400 (MISSED)
+
+Stage: chunking, `chunker.py::split_documents`.
+
+Mechanism: the chunker fills to the 300 ceiling and pushes the leftover into a
+new chunk. When the leftover is under my 170 floor, the tail fold glues it back
+on, recreating the whole document as one chunk over the ceiling. Worst case is
+ceiling plus floor, 470; longest measured is 420. All three over 400 are whole
+documents that split and reassembled.
+
+Not fixed yet. The real fix is a chunker rewrite that merges undersized middle
+chunks too, and re-indexing would move every distance I have measured.
+Reported, not hidden.
+
+### Question 1 run 2 — looked like a miss, was not
+
+The scorer reported fail on this run, so I checked it against all five
+criteria. None missed. The source document was retrieved (criterion 1), the
+answer named it (criterion 2), and every fact in the answer was in the chunk
+(criterion 5). "No penalties" is the same fact as "no penalty" in different
+words.
+
+Stage: scoring, `scorer.py::judge`. Mechanism: substring check, and "no
+penalty" is not a substring of "no penalties". Retrieval was identical all
+three runs. The only thing that moved was the model's wording, and my question
+had the plural in it, so the model was echoing me.
 
 A measurement miss, not a system miss. This is the one I chose to fix.
+
 ## The Improvement
 
 **What I changed:** Reworded question 1 from "are there penalties for
 declaring my major late?" to "is there any penalty for declaring my major
-late?" Original kept as a comment in questions.py with the reason.
+late?" Original kept as a comment in `questions.py` with the reason.
 
 **Why I picked it:** The scorer is shared class code; my questions are mine.
 One diagnosis, one change. My plural was handing the model the word it echoed
 back, so removing it is the smallest fix that targets the actual mechanism.
 
-### Run Log — After
-Run: results/run_2026-09-23_2200.md, same pipeline. After the question 1 reword. Scorer: 15/15.
+## Run Log — After
+
+Run: `results/run_2026-09-23_2200.md`, same pipeline. After the question 1 reword. Scorer: 15/15.
+
 | Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
 |---|---|---|---|---|---|
-| 1. Retrieved chunk contains the answer | 4 of 5 |5/5|5/5|5/5|MET|
-| 2. Every answer names a source | 5 of 5 |5/5|5/5|5/5|MET|
-| 3. Gate stops out-of-corpus questions | 4 of 5 | 5/5 | 5/5 | 5/5  |MET|
-| 4. No chunk is under 170 characters or over 400 characters |0 under 170, 0 over 400|177-420, 3 over 400|177-420, 3 over 400|177-420, 3 over 400|MISSED|
-| 5. For all of my 5 test questions, every fact in the answer must appear in one of the retrieved chunks | 5 of 5 |5/5|5/5|5/5|MET|
+| 1. Retrieved chunk contains the answer | 4 of 5 | 5/5 | 5/5 | 5/5 | MET |
+| 2. Every answer names a source | 5 of 5 | 5/5 | 5/5 | 5/5 | MET |
+| 3. Gate stops out-of-corpus questions | 4 of 5 | 5/5 | 5/5 | 5/5 | MET |
+| 4. No chunk is under 170 characters or over 400 characters | 0 under 170, 0 over 400 | 177-420, 3 over 400 | 177-420, 3 over 400 | 177-420, 3 over 400 | MISSED |
+| 5. For all of my 5 test questions, every fact in the answer must appear in one of the retrieved chunks | 5 of 5 | 5/5 | 5/5 | 5/5 | MET |
 
-**Did it help?** The scorer went from 14/15 to 15/15 and the question 1's distance dropped from 0.228 to 0.205. Every criterion verdict is identical before and after; the change fixed the scorer's read of one question and nothing else.
+**Did it help?** The scorer went from 14/15 to 15/15 and question 1's
+distance dropped from 0.228 to 0.205. Every criterion verdict is identical
+before and after; the change fixed the scorer's read of one question and
+nothing else.
 
 ## What's Still Broken
-**Criterion 4 — three chunks over 400.** The chunker produced three chunks over 400. I could fix the chunker but chose not to because it is a rewrite that moves every distance. Every cutoff and TOP_K decision in Unit 1 was
-measured against the current chunks, so re-chunking means re-measuring all of it. The real fix is merging undersized middle chunks as well as tails, or splitting documents into roughly equal pieces instead of filling the front greedily.
 
-**Workload boilerplate.** The course workload files share boilerplate wording and differ only in the course name and the hours. I tested it with python app.py retrieve "how heavy is the workload?" Both TOP_K slots came back as workload files, PHYS 130 at 0.529 and CS 210 at 0.553, and the gate passed it because 0.529 is under 0.6. The model would get two near identical chunks about two different courses and no way to tell which one I meant. Part of this is the question, which has no single right answer, and part is the corpus, where a dozen documents match it about equally. Not fixed.
+**Criterion 4 — three chunks over 400.** The chunker produced three chunks
+over 400. I could fix the chunker but chose not to because it is a rewrite
+that moves every distance. Every cutoff and TOP_K decision in Unit 1 was
+measured against the current chunks, so re-chunking means re-measuring all of
+it. The real fix is merging undersized middle chunks as well as tails, or
+splitting documents into roughly equal pieces instead of filling the front
+greedily.
 
-**Correct but incomplete answers.** Two of my Milestone 2 answers were correct but skipped a figure that was sitting in the chunks. Criterion 5 cannot catch this, because leaving a fact out is not the same as inventing one. A fourth grounding rule telling the model to include specific numbers and deadlines would help, but it works against the "be brief" rule already in there, so it is a real tradeoff rather than a free improvement. Not done.
+**Workload boilerplate.** The course workload files share boilerplate wording
+and differ only in the course name and the hours. I tested it with
+`python app.py retrieve "how heavy is the workload?"`. Both TOP_K slots came
+back as workload files, PHYS 130 at 0.529 and CS 210 at 0.553, and the gate
+passed it because 0.529 is under 0.6. The model would get two near identical
+chunks about two different courses and no way to tell which one I meant. Part
+of this is the question, which has no single right answer, and part is the
+corpus, where a dozen documents match it about equally. Not fixed.
+
+**Correct but incomplete answers.** Two of my Milestone 2 answers were correct
+but skipped a figure that was sitting in the chunks. Criterion 5 cannot catch
+this, because leaving a fact out is not the same as inventing one. A fourth
+grounding rule telling the model to include specific numbers and deadlines
+would help, but it works against the "be brief" rule already in there, so it
+is a real tradeoff rather than a free improvement. Not done.
 
 ## What I'd Do Differently
 
-Fix the chunker's logic before tuning its number. I tested three ceilings in Unit 1 Milestone 3 and measured both bounds each time. At 400 and 300 the ceiling broke, at 230 the floor broke. That told me no ceiling value could satisfy criterion 4, because the fold only protects the last chunk of a document and never the middle ones. I kept tuning the number anyway. Next time, once the measurements show the knob cannot win, I stop turning it and fix the
-algorithm, then tune.
+**Criterion 5 is the one I'd rewrite.** It says every fact in the answer must
+appear in a retrieved chunk, which catches invented facts and nothing else.
+This unit showed me two correct answers that skipped a figure sitting in the
+chunk, and criterion 5 passed them, because leaving a fact out is not the same
+as putting one in. It also needs a person to decide what counts as a fact,
+which I flagged in unit 1. Next time I would split it in two: keep the
+no-invented-facts check as it is, and add a second check that the specific
+figure or deadline in `expects` appears in the answer, which the scorer can
+test without a judgment call. Same target, 5 of 5. Sharper, not looser.
 
-Write the "why this target" for every criterion the day I write the criterion. Criteria 1, 2 and 3 sat with empty placeholders for two weeks and I had to rebuild the reasoning from my notes. It was all there, but it should
+Fix the chunker's logic before tuning its number. I tested three ceilings in
+Unit 1 Milestone 3 and measured both bounds each time. At 400 and 300 the
+ceiling broke, at 230 the floor broke. That told me no ceiling value could
+satisfy criterion 4, because the fold only protects the last chunk of a
+document and never the middle ones. I kept tuning the number anyway. Next
+time, once the measurements show the knob cannot win, I stop turning it and
+fix the algorithm, then tune.
+
+Write the "why this target" for every criterion the day I write the
+criterion. Criteria 1, 2 and 3 sat with empty placeholders for two weeks and I
+had to rebuild the reasoning from my notes. It was all there, but it should
 have been in criteria.md from the start.
 
-Read my own question before I read the model's answer. The plural in "are there penalties" is what the model echoed back. A question that hands the model a word is a question that will sometimes get that word back, and my
-expects string has to survive
-
+Read my own question before I read the model's answer. The plural in "are
+there penalties" is what the model echoed back. A question that hands the
+model a word is a question that will sometimes get that word back, and my
+`expects` string has to survive that.
