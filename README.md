@@ -245,56 +245,39 @@ misses, the grounding instruction catches the near ones.
 
 ## How I Used AI
 
-**1. I asked Claude to write the chunking function from my notes, and it added
-a rule I had not asked for.**
+**1. Unit 1: Claude wrote the chunking function from my notes and added a rule
+I had not asked for.** I had decided on sentence boundaries, a ceiling, and 70
+characters of overlap. The code that came back also folded any tail under 170
+characters back into the previous chunk. I kept it, and it is why my ceiling
+broke: at 400 the fold recreated five whole documents as single chunks up to
+513 characters. I only caught it by sorting chunks by length and noticing the
+five longest were all index #0. Testing three ceilings and working out that
+the fold only protects the last chunk, never the middle ones, is in my
+Chunking Strategy section. Taken unread, the code would have had me report
+89 chunks and think it worked.
 
-I had already decided on sentence boundaries, a ceiling, and 70 characters of
-overlap, and I asked for code that did that. What came back also included a
-tail-fold rule: if the leftover piece at the end of a document was under 170
-characters, glue it back onto the chunk before it. I had not asked for that. It
-was Claude's way of handling the 2 character chunk problem the guide mentions
-on `advice_threads`.
+**2. Unit 1: Claude made a prediction that was wrong, and checking it
+produced my real evidence.** It predicted that a laundry question aimed at
+the six-subject `housing_old_brewhouse.txt` would retrieve badly. It scored
+0.211, my best of the project, because a dedicated laundry file existed. So I
+tested heating, which lives only in the mixed file, and got 0.363. That 0.152
+gap is what my whole ceiling argument rests on. Test the claim, not the story.
 
-I kept it, but it is the reason my ceiling broke. At a ceiling of 400 that fold
-fired on five documents, glued each tail back on, and recreated whole documents
-as single chunks of up to 513 characters, over my own 400 limit. I only found
-it because I sorted my chunks by length and noticed the five longest were all
-index #0, meaning nothing had actually split.
+**3. Unit 2: Claude coached; I ran and read.** Every number in the Unit 2
+tables came from a command I ran or an answer I read in results/. Claude
+explained what each criterion measured and where to look, and corrected me
+once when I carried the scorer's fail into row 1. The fifteen answers, the
+tallies, and every MET or MISSED are mine. The fix was my breakout room coach's input
+not Claude's: Claude first suggested stemming in the judge, and I chose the
+question reword after asking in class. Claude assembled README sections from
+paragraphs already in notes.md or the chat, and I edited each before pasting.
+It got one lesson wrong, saying I should have tested both chunk bounds before
+choosing a ceiling when I had tested them three times, and the corrected
+version is what appears above. It also fixed setup problems: wrong folder,
+`return bool`, a truncated paste.
 
-What I changed was not the code but my understanding of the tradeoff. I tested
-three ceilings, found that 230 fixed the top and broke the bottom, and worked
-out that the fold only protects the last chunk of a document and never the ones
-in the middle. That is written up in my Chunking Strategy section. If I had
-taken the code without reading it I would have reported 89 chunks and thought
-my chunker worked.
-
-**2. Claude made a prediction about my corpus and it was wrong, and finding
-that out is what produced my actual evidence.**
-
-I was trying to decide my ceiling. `housing_old_brewhouse.txt` is 563
-characters and covers six subjects, and Claude predicted that asking about the
-laundry cost buried inside it would retrieve badly, because a chunk covering
-six things matches no single question strongly.
-
-I ran it and got 0.211, my best distance of the whole project. The prediction
-was wrong, because there is a dedicated `housing_old_brewhouse_laundry.txt`
-that did the work instead.
-
-So I tested the case with no dedicated file. Heating is mentioned only inside
-the six subject document, and it scored 0.363. Same building, same question
-style, a gap of 0.152. That number is the evidence my whole ceiling argument
-rests on, and I would not have it if the first prediction had been right.
-
-What I took from this is to test the claim rather than the story. The
-explanation sounded convincing both times. Only one of them was measurable.
-
-**3. I used Claude to tidy up the grammar of this README.**
-
-The measurements, the decisions and the reasoning in here are mine, out of my
-own terminal. I wrote them up rough and had Claude clean up the grammar and
-tighten the wording, then went back over it. I am saying so because it would be
-odd to have a section about how I used AI that did not mention the AI I used on
-the section itself. The What This Does section is my own writing, untouched.
+**4. Both units: grammar.** I wrote rough, Claude tightened, I went back over
+it. The What This Does section is untouched.
 
 ---
 
