@@ -630,7 +630,8 @@ have moved. I should re run them before I set the cutoff.
 
 =============================================================================
 PART 3: MILESTONES 4 AND 5, RETRIEVAL AND THE CUTOFF
-=============================================================================
+===
+
 
 
 RE RUNNING MY FIVE QUESTIONS AFTER RE CHUNKING
@@ -651,16 +652,17 @@ Worth remembering: a corpus level change does not automatically show up in my
 measurements. It only shows up if my questions touch the part that changed.
 
 
+
 WHAT RETRIEVAL WAS ACTUALLY RETURNING
 
 app.py retrieve prints the chunks with their distances, which ask does not. I
 ran all five through it.
 
-  Question                    #1       #2      #3      #4      #5
-  meal plan mid-semester      0.271    0.542   0.566   0.591   0.599
-  grade appeal                0.305    0.667   0.681   0.720   0.755
-  pass/fail deadline          0.274    0.441   0.525   0.598   0.599
-  study abroad aid            0.295    0.638   0.692   0.764   0.772
+Question                    #1       #2      #3      #4      #5
+meal plan mid-semester      0.271    0.542   0.566   0.591   0.599
+grade appeal                0.305    0.667   0.681   0.720   0.755
+pass/fail deadline          0.274    0.441   0.525   0.598   0.599
+study abroad aid            0.295    0.638   0.692   0.764   0.772
 
 The answer was at position 1 every single time. The drop from 1 to 2 is
 enormous in every case. Positions 2 through 5 all sit between 0.44 and 0.77,
@@ -676,7 +678,8 @@ new chunker had split into two chunks. So one document was taking two slots.
 That is the crowding I was worried about when I picked my overlap number.
 
 
-WHY I SET TOP_K TO 2
+
+WHY I SET TOP\_K TO 2
 
 My data on its own would say 1. The answer was never below position 1.
 
@@ -691,21 +694,22 @@ So 2. Position 2 has never been needed across five questions, and everything
 from position 2 down scores in the same range as questions the corpus cannot
 answer at all.
 
-It also made answers cheaper. The meal plan question used 538 tokens at TOP_K
-5 and 310 at TOP_K 2, and the answer did not lose a single detail. It actually
+It also made answers cheaper. The meal plan question used 538 tokens at TOP\_K
+5 and 310 at TOP\_K 2, and the answer did not lose a single detail. It actually
 read better, because it led with a direct no.
 
-TOP_K takes effect immediately. No re indexing needed.
+TOP\_K takes effect immediately. No re indexing needed.
+
 
 
 SETTING THE CUTOFF
 
-  In corpus                                     Out of scope
-  declaring major late        0.228             capital of Mongolia      0.825
-  meal plan mid-semester      0.271             ibuprofen dosage         0.844
-  pass/fail deadline          0.274             1994 World Cup           0.886
-  study abroad aid            0.295             for loop in Rust         0.896
-  grade appeal                0.305             diesel oil change        0.934
+In corpus                                     Out of scope
+declaring major late        0.228             capital of Mongolia      0.825
+meal plan mid-semester      0.271             ibuprofen dosage         0.844
+pass/fail deadline          0.274             1994 World Cup           0.886
+study abroad aid            0.295             for loop in Rust         0.896
+grade appeal                0.305             diesel oil change        0.934
 
 Worst in corpus 0.305. Best out of scope 0.825. A gap of 0.52 with nothing in
 it. The guide says most corpora land between 0.45 and 0.75, so my whole gap is
@@ -724,10 +728,11 @@ Out of scope questions cost nothing to run. A refusal never reaches the model,
 so it is 0 model calls every time.
 
 
+
 THE GROUNDING INSTRUCTION WAS ALREADY THERE
 
 Milestone 4 asks for a grounding instruction as a second layer. I went looking
-in generate.py and found GROUNDING_INSTRUCTION already written. It says use
+in generate.py and found GROUNDING\_INSTRUCTION already written. It says use
 only the documents, say you do not have enough information if they do not
 cover it, name the file, and be brief.
 
@@ -752,14 +757,16 @@ work against the "be brief" rule already in there, so it is a real tradeoff
 rather than a free improvement. Candidate for Unit 2.
 
 
+
 THE TWO LAYERS, AND WHAT NEITHER CATCHES
 
-  The gate   catches questions where nothing is close.       Mongolia, 0.825.
-  The prompt catches questions where things are close but
-             the answer is not there.                        credits, 0.513.
+The gate   catches questions where nothing is close.       Mongolia, 0.825.
+The prompt catches questions where things are close but
+the answer is not there.                        credits, 0.513.
 
 Neither catches an answer that is correct but incomplete. That is a third
 thing, and it is what my fifth criterion is really testing.
+
 
 
 WHAT I AM CARRYING INTO UNIT 2
@@ -770,15 +777,326 @@ documents into roughly equal pieces instead of filling the front greedily.
 
 The course workload files share boilerplate wording. A general question like
 "how heavy is the workload?" will match a dozen of them about equally. With
-TOP_K 2 that means both my slots could fill with near identical text about two
+TOP\_K 2 that means both my slots could fill with near identical text about two
 different courses. I have not tested that.
 
 Criteria 1 and 5 need a human judgment call. 2, 3 and 4 are mechanical.
 
-Unit 2 wants three runs per criterion through run_eval.py, verdicts against
+Unit 2 wants three runs per criterion through run\_eval.py, verdicts against
 the targets I already set rather than new ones, a diagnosis per miss naming
 both the stage and the mechanism, one improvement tied to a specific
 diagnosis, and an honest answer on whether it helped.
 
-Caching is off during evaluation. run_eval.py passes cache=False, so three
+Caching is off during evaluation. run\_eval.py passes cache=False, so three
 runs are three real answers rather than one answer three times.
+
+
+
+=============================================================================
+
+PART 4: UNIT 2, MILESTONE 1, THE SCORER AND THE FIRST JUDGED RUN
+
+=============================================================================
+
+
+
+
+
+WHAT THE JUDGE DOES
+
+
+
+judge(question, expects, answer, results) -> bool. It strips and lowercases
+
+expects, lowercases answer, and returns whether expects is a substring of
+
+answer. If expects is empty it returns False rather than passing a question
+
+that has nothing to check.
+
+
+
+
+
+THE RUN
+
+
+
+python run\_eval.py, three runs per question, cache off.
+
+
+
+&#x20; declaring late      pass  fail  pass    0.228
+
+&#x20; grade appeal        pass  pass  pass    0.305
+
+&#x20; meal plan changes   pass  pass  pass    0.271
+
+&#x20; pass/fail deadline  pass  pass  pass    0.274
+
+&#x20; study abroad aid    pass  pass  pass    0.295
+
+
+
+&#x20; gate refused 5 of 5 out of scope, 0.825 to 0.934
+
+
+
+14 of 15. Results in results/run\_2026-09-23\_2048.md, committed.
+
+
+
+
+
+THE ONE MISS
+
+
+
+Question 1, run 2. expects is "no penalty". The three answers were:
+
+
+
+&#x20; run 1   No, there is no penalty for declaring your major late.
+
+&#x20; run 2   No, there are no penalties for declaring your major late.
+
+&#x20; run 3   No, there is no penalty for declaring your major late.
+
+
+
+All three are correct. Run 2 said penalties instead of penalty, and
+
+"no penalty" is not a substring of "no penalties" because the match breaks
+
+at the y. Retrieval was identical across all three runs, same distance,
+
+same chunks. The only thing that moved was the model's wording.
+
+
+
+So this is a judge miss, not a system miss. Grammar, not facts. The system
+
+did its job and the scorer was too rigid to see it.
+
+
+
+I already met this once. In Part 1 I lost a match on "sciences" versus
+
+"science" while writing the expects strings. I fixed it then by changing the
+
+string. Now it has come back through the model's wording instead of mine,
+
+which means changing strings one at a time is not a fix, it is a patch.
+
+
+
+
+
+DECISION
+
+
+
+I am keeping 14 of 15 as the honest number. I am not editing expects, the
+
+results file, or the answer to make it pass. The guide says a criterion can
+
+be revised only when it measured the wrong thing, and this one measured the
+
+right thing and reported a real weakness in my scorer.
+
+
+
+"travels with" is exposed to the same problem. If the model ever says
+
+"travel with", that question fails the same way for the same reason.
+
+
+
+
+
+OPEN ITEM
+
+
+
+Make the judge tolerant of singular versus plural. The idea is to compare
+
+word roots instead of whole words: lowercase, split into words, reduce each
+
+word to a stem, rejoin, then do the substring check. A crude rule that
+
+strips a trailing s does not work here, because penalties becomes penaltie,
+
+not penalty. The -ies to -y case needs its own rule, and after that there
+
+are more exceptions. This is what a stemmer library handles.
+
+
+
+Before I change scorer.py I want to be able to say what the new judge would
+
+WRONGLY accept that the old one rejected. Every looser judge has one. If I
+
+cannot name it I have not thought it through.
+
+
+
+Not done yet. Learning it in the Python prompt first.
+
+
+
+DECISION
+
+
+
+I did not change the judge. The help in class said to play with the
+
+questions and expects instead, and once I thought about it that made sense.
+
+The judge is shared code that the whole class runs. My questions and expects
+
+are mine. Unit 2 wants one improvement tied to one diagnosis, and rewording
+
+a question is exactly that. Rewriting the scorer touches every question at
+
+once and is a lot harder to argue cleanly.
+
+
+
+I also did not touch expects or edit the results. The 14 of 15 run stays in
+
+results/ as it happened.
+
+
+
+I said above that changing strings one at a time is a patch, not a fix. I
+
+still think that about expects. But the question is different. The question
+
+is what I hand the model, and my question was handing it the word it echoed.
+
+
+
+
+
+THE CHANGE
+
+
+
+Reworded question 1 from "are there penalties for declaring my major late?"
+
+to "is there any penalty for declaring my major late?" The plural in my
+
+question was the cue. The model read "penalties" and said "penalties" back.
+
+Singular wording takes that away. Original kept as a comment in questions.py
+
+with the reason above the new line.
+
+
+
+One change only, so the re run tells me what that one change did.
+
+
+
+
+
+THE RE RUN
+
+
+
+&#x20; declaring late      pass  pass  pass    0.205
+
+&#x20; grade appeal        pass  pass  pass    0.305
+
+&#x20; meal plan changes   pass  pass  pass    0.271
+
+&#x20; pass/fail deadline  pass  pass  pass    0.274
+
+&#x20; study abroad aid    pass  pass  pass    0.295
+
+
+
+&#x20; gate refused 5 of 5, 0.825 to 0.934
+
+
+
+15 of 15. Results in results/run\_2026-09-23\_2200.md, committed with the
+
+questions.py change in the same commit so they sit together.
+
+
+
+The distance on question 1 moved too, 0.228 to 0.205. The reword did not
+
+just remove the plural, it got closer to the document. In Part 1 a reword
+
+pushed a question from 0.593 to 0.601, across the cutoff the wrong way. Same
+
+mechanism, opposite direction. Small wording changes move distance and I
+
+cannot predict which way without measuring.
+
+
+
+The other four did not move at all. I only touched one, so that is what I
+
+expected.
+
+
+
+
+
+NOTED, NOT CHANGED
+
+
+
+"travels with" has the same singular versus plural shape as the one that
+
+failed. It held three of three, so there is no diagnosis to act on. If it
+
+breaks later I already know the mechanism. Changing it now would be fixing
+
+something that has not happened, which is the same mistake I called out in
+
+Part 3 when I left the cutoff at 0.6.
+
+
+
+I considered making the judge compare word stems instead of whole words, so
+
+penalty and penalties would count as the same. Set it aside. The fix
+
+belonged in my test data, not in shared code, and a looser judge accepts
+
+things a strict one rejects. If I ever do it I want to be able to name what
+
+it would wrongly pass before I trust it.
+
+
+
+
+
+WHAT I AM CARRYING INTO MILESTONE 2
+
+
+
+Grade each of my five criteria MET or MISSED against the 15 of 15 run, using
+
+the targets I set in unit 1, not new ones. Criteria 1 and 5 still need me to
+
+read the answers and make a call. 2, 3 and 4 I can read straight off the
+
+run log.
+
+
+
+The "be brief" versus "include the numbers" tradeoff from Part 3 is still
+
+open. Two unit 1 answers were correct but skipped a figure. That is the kind
+
+of miss criterion 5 is meant to catch and the scorer cannot see it. Worth
+
+checking whether it shows up across three runs.
+
+
+
